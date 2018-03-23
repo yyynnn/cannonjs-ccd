@@ -940,8 +940,8 @@ Body.prototype.integrate = function(dt, quatNormalize, quatNormalizeFast){
     // CCD
     if(!this.integrateToTimeOfImpact(dt)){
         // Regular position update
-        Vec3.scale(integrate_velodt, velo, dt);
-        Vec3.add(pos, pos, integrate_velodt);
+        velo.vmul(integrate_velodt, dt);
+        pos.vadd(pos, integrate_velodt);
     }
 
     this.aabbNeedsUpdate = true;
