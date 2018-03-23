@@ -958,7 +958,7 @@ var result;
 
 Body.prototype.integrateToTimeOfImpact = function(dt){
 
-    if(this.ccdSpeedThreshold < 0 || Vec3.squaredLength(this.velocity) < Math.pow(this.ccdSpeedThreshold, 2)){
+    if(this.ccdSpeedThreshold < 0 || this.velocity.length() < Math.pow(this.ccdSpeedThreshold, 2)){
         return false;
     }
 
