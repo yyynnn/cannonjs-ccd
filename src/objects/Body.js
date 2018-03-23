@@ -950,50 +950,41 @@ Body.prototype.integrate = function(dt, quatNormalize, quatNormalizeFast){
     this.updateInertiaWorld();
 };
 
-Body.prototype.integrateToTimeOfImpact = function(dt){
+var direction = new Vec3();
+var end = new Vec3();
+var startToEnd = new Vec3();
+var rememberPosition = new Vec3();
+var result;
 
-    console.log('int');
-    return false;
+Body.prototype.integrateToTimeOfImpact = function(dt){
 
     if(this.ccdSpeedThreshold < 0 || Vec3.squaredLength(this.velocity) < Math.pow(this.ccdSpeedThreshold, 2)){
         return false;
     }
 
-    // Ignore all the ignored body pairs
-    // This should probably be done somewhere else for optimization
+    console.log('int2');
+
     var ignoreBodies = [];
-    var disabledPairs = this.world.disabledBodyCollisionPairs;
-    for(var i=0; i<disabledPairs.length; i+=2){
-        var bodyA = disabledPairs[i];
-        var bodyB = disabledPairs[i+1];
-        if(bodyA === this){
-            ignoreBodies.push(bodyB);
-        } else if(bodyB === this){
-            ignoreBodies.push(bodyA);
-        }
-    }
 
-    vec2.normalize(direction, this.velocity);
+    direction = this.velocity.normalize();
 
-    vec2.scale(end, this.velocity, dt);
-    add(end, end, this.position);
+    this.velocity.vmul(end, dt);
+    end.vadd(end, this.position);
 
-    sub(startToEnd, end, this.position);
-    var startToEndAngle = this.angularVelocity * dt;
-    var len = vec2.length(startToEnd);
+    end.vsub(startToEnd, this.position);
+    var len = startToEnd.length();
 
     var timeOfImpact = 1;
 
     var hitBody;
-    vec2.copy(ray.from, this.position);
-    vec2.copy(ray.to, end);
-    ray.update();
+
     for(var i=0; i<this.shapes.length; i++){
         var shape = this.shapes[i];
-        result.reset();
-        ray.collisionGroup = shape.collisionGroup;
-        ray.collisionMask = shape.collisionMask;
-        this.world.raycast(result, ray);
+        this.world.raycastClosest(this.position, end, {
+            collisionFilterMask: shape.collisionFilterMask,
+            collisionFilterGroup: shape.collisionFilterGroup,
+            skipBackfaces: true
+        }, result);
         hitBody = result.body;
 
         if(hitBody === this || ignoreBodies.indexOf(hitBody) !== -1){
@@ -1008,12 +999,11 @@ Body.prototype.integrateToTimeOfImpact = function(dt){
     if(!hitBody || !timeOfImpact){
         return false;
     }
-    result.getHitPoint(end, ray);
-    sub(startToEnd, end, this.position);
-    timeOfImpact = vec2.distance(end, this.position) / len; // guess
+    end = result.hitPointWorld;
+    end.vsub(this.position, startToEnd);
+    timeOfImpact = result.distance / len; // guess
 
-    var rememberAngle = this.angle;
-    vec2.copy(rememberPosition, this.position);
+    rememberPosition.copy(this.position);
 
     // Got a start and end point. Approximate time of impact using binary search
     var iter = 0;
@@ -1027,13 +1017,13 @@ Body.prototype.integrateToTimeOfImpact = function(dt){
         tmid = (tmax + tmin) / 2;
 
         // Move the body to that point
-        vec2.scale(integrate_velodt, startToEnd, tmid);
-        add(this.position, rememberPosition, integrate_velodt);
-        this.angle = rememberAngle + startToEndAngle * tmid;
-        this.updateAABB();
+        startToEnd.mult(tmid, integrate_velodt);
+        this.position = rememberPosition.vadd(integrate_velodt);
+        this.computeAABB();
 
         // check overlap
-        var overlaps = this.aabb.overlaps(hitBody.aabb) && this.world.narrowphase.bodiesOverlap(this, hitBody, true);
+        // TODO: доделать
+        var overlaps = this.aabb.overlaps(hitBody.aabb) /*&& this.world.narrowphase.bodiesOverlap(this, hitBody, true)*/;
 
         if (overlaps) {
             // change max to search lower interval
@@ -1046,15 +1036,11 @@ Body.prototype.integrateToTimeOfImpact = function(dt){
 
     timeOfImpact = tmax; // Need to guarantee overlap to resolve collisions
 
-    vec2.copy(this.position, rememberPosition);
-    this.angle = rememberAngle;
+    this.position.copy(rememberPosition);
 
     // move to TOI
-    vec2.scale(integrate_velodt, startToEnd, timeOfImpact);
-    add(this.position, this.position, integrate_velodt);
-    if(!this.fixedRotation){
-        this.angle += startToEndAngle * timeOfImpact;
-    }
+    startToEnd.mult(timeOfImpact, integrate_velodt);
+    this.position.vadd(integrate_velodt, this.position);
 
     return true;
 };
