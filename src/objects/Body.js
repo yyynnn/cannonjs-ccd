@@ -64,6 +64,21 @@ function Body(options){
     this.preStep = null;
 
     /**
+     * If the body speed exceeds this threshold, CCD (continuous collision detection) will be enabled. Set it to a negative number to disable CCD completely for this body.
+     * @property {number} ccdSpeedThreshold
+     * @default -1
+     */
+    this.ccdSpeedThreshold = options.ccdSpeedThreshold !== undefined ? options.ccdSpeedThreshold : 10;
+    
+    /**
+     * The number of iterations that should be used when searching for the time of impact during CCD. A larger number will assure that there's a small penetration on CCD collision, but a small number will give more performance.
+     * @property {number} ccdIterations
+     * @default 10
+     */
+    this.ccdIterations = options.ccdIterations !== undefined ? options.ccdIterations : 10;
+
+
+    /**
      * Callback function that is used AFTER stepping the system. Inside the function, "this" will refer to this Body object.
      * @property postStep
      * @type {Function}
@@ -863,6 +878,7 @@ Body.prototype.getVelocityAtWorldPoint = function(worldPoint, result){
 
 var torque = new Vec3();
 var invI_tau_dt = new Vec3();
+var integrate_velodt = new Vec3();
 var w = new Quaternion();
 var wq = new Quaternion();
 
@@ -921,8 +937,124 @@ Body.prototype.integrate = function(dt, quatNormalize, quatNormalizeFast){
         }
     }
 
+    // CCD
+    if(!this.integrateToTimeOfImpact(dt)){
+        // Regular position update
+        Vec3.scale(integrate_velodt, velo, dt);
+        Vec3.add(pos, pos, integrate_velodt);
+    }
+
     this.aabbNeedsUpdate = true;
 
     // Update world inertia
     this.updateInertiaWorld();
+};
+
+Body.prototype.integrateToTimeOfImpact = function(dt){
+
+    console.log('int');
+    return false;
+
+    if(this.ccdSpeedThreshold < 0 || Vec3.squaredLength(this.velocity) < Math.pow(this.ccdSpeedThreshold, 2)){
+        return false;
+    }
+
+    // Ignore all the ignored body pairs
+    // This should probably be done somewhere else for optimization
+    var ignoreBodies = [];
+    var disabledPairs = this.world.disabledBodyCollisionPairs;
+    for(var i=0; i<disabledPairs.length; i+=2){
+        var bodyA = disabledPairs[i];
+        var bodyB = disabledPairs[i+1];
+        if(bodyA === this){
+            ignoreBodies.push(bodyB);
+        } else if(bodyB === this){
+            ignoreBodies.push(bodyA);
+        }
+    }
+
+    vec2.normalize(direction, this.velocity);
+
+    vec2.scale(end, this.velocity, dt);
+    add(end, end, this.position);
+
+    sub(startToEnd, end, this.position);
+    var startToEndAngle = this.angularVelocity * dt;
+    var len = vec2.length(startToEnd);
+
+    var timeOfImpact = 1;
+
+    var hitBody;
+    vec2.copy(ray.from, this.position);
+    vec2.copy(ray.to, end);
+    ray.update();
+    for(var i=0; i<this.shapes.length; i++){
+        var shape = this.shapes[i];
+        result.reset();
+        ray.collisionGroup = shape.collisionGroup;
+        ray.collisionMask = shape.collisionMask;
+        this.world.raycast(result, ray);
+        hitBody = result.body;
+
+        if(hitBody === this || ignoreBodies.indexOf(hitBody) !== -1){
+            hitBody = null;
+        }
+
+        if(hitBody){
+            break;
+        }
+    }
+
+    if(!hitBody || !timeOfImpact){
+        return false;
+    }
+    result.getHitPoint(end, ray);
+    sub(startToEnd, end, this.position);
+    timeOfImpact = vec2.distance(end, this.position) / len; // guess
+
+    var rememberAngle = this.angle;
+    vec2.copy(rememberPosition, this.position);
+
+    // Got a start and end point. Approximate time of impact using binary search
+    var iter = 0;
+    var tmin = 0;
+    var tmid = timeOfImpact;
+    var tmax = 1;
+    while (tmax >= tmin && iter < this.ccdIterations) {
+        iter++;
+
+        // calculate the midpoint
+        tmid = (tmax + tmin) / 2;
+
+        // Move the body to that point
+        vec2.scale(integrate_velodt, startToEnd, tmid);
+        add(this.position, rememberPosition, integrate_velodt);
+        this.angle = rememberAngle + startToEndAngle * tmid;
+        this.updateAABB();
+
+        // check overlap
+        var overlaps = this.aabb.overlaps(hitBody.aabb) && this.world.narrowphase.bodiesOverlap(this, hitBody, true);
+
+        if (overlaps) {
+            // change max to search lower interval
+            tmax = tmid;
+        } else {
+            // change min to search upper interval
+            tmin = tmid;
+        }
+    }
+
+    timeOfImpact = tmax; // Need to guarantee overlap to resolve collisions
+
+    vec2.copy(this.position, rememberPosition);
+    this.angle = rememberAngle;
+
+    // move to TOI
+    vec2.scale(integrate_velodt, startToEnd, timeOfImpact);
+    add(this.position, this.position, integrate_velodt);
+    if(!this.fixedRotation){
+        this.angle += startToEndAngle * timeOfImpact;
+    }
+
+    return true;
 };
