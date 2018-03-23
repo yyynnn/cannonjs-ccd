@@ -76,7 +76,7 @@ function Body(options){
      * @property {number} ccdIterations
      * @default 10
      */
-    this.ccdIterations = options.ccdIterations !== undefined ? options.ccdIterations : 10;
+    this.ccdIterations = options.ccdIterations !== undefined ? options.ccdIterations : 30;
 
 
     /**
@@ -924,9 +924,6 @@ Body.prototype.integrate = function(dt, quatNormalize, quatNormalizeFast){
     angularVelo.z += dt * (e[6] * tx + e[7] * ty + e[8] * tz);
 
     // Use new velocity  - leap frog
-    pos.x += velo.x * dt;
-    pos.y += velo.y * dt;
-    pos.z += velo.z * dt;
 
     quat.integrate(this.angularVelocity, dt, this.angularFactor, quat);
 
@@ -941,8 +938,9 @@ Body.prototype.integrate = function(dt, quatNormalize, quatNormalizeFast){
     // CCD
     if(!this.integrateToTimeOfImpact(dt)){
         // Regular position update
-        velo.vmul(integrate_velodt, dt);
-        pos.vadd(pos, integrate_velodt);
+        velo.mult(dt, integrate_velodt);
+        pos.vadd(integrate_velodt, pos);
+
     }
 
     this.aabbNeedsUpdate = true;
@@ -963,16 +961,15 @@ Body.prototype.integrateToTimeOfImpact = function(dt){
         return false;
     }
 
-    console.log('int2');
-
     var ignoreBodies = [];
 
-    direction = this.velocity.normalize();
+    direction.copy(this.velocity);
+    direction.normalize();
 
-    this.velocity.vmul(end, dt);
-    end.vadd(end, this.position);
+    this.velocity.mult(dt, end);
+    end.vadd(this.position, end);
 
-    end.vsub(startToEnd, this.position);
+    end.vsub(this.position, startToEnd);
     var len = startToEnd.length();
 
     var timeOfImpact = 1;
@@ -1000,6 +997,7 @@ Body.prototype.integrateToTimeOfImpact = function(dt){
     if(!hitBody || !timeOfImpact){
         return false;
     }
+
     end = result.hitPointWorld;
     end.vsub(this.position, startToEnd);
     timeOfImpact = result.distance / len; // guess
@@ -1019,12 +1017,13 @@ Body.prototype.integrateToTimeOfImpact = function(dt){
 
         // Move the body to that point
         startToEnd.mult(tmid, integrate_velodt);
-        this.position = rememberPosition.vadd(integrate_velodt);
+        rememberPosition.vadd(integrate_velodt, this.position);
         this.computeAABB();
 
         // check overlap
-        // TODO: доделать
-        var overlaps = this.aabb.overlaps(hitBody.aabb) /*&& this.world.narrowphase.bodiesOverlap(this, hitBody, true)*/;
+        var overlapResult = [];
+        this.world.narrowphase.getContacts([this], [hitBody], this.world, overlapResult, [], [], []);
+        var overlaps = this.aabb.overlaps(hitBody.aabb) && overlapResult.length > 0;
 
         if (overlaps) {
             // change max to search lower interval
