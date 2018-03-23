@@ -954,7 +954,7 @@ var direction = new Vec3();
 var end = new Vec3();
 var startToEnd = new Vec3();
 var rememberPosition = new Vec3();
-var result;
+var result = new RaycastResult();
 
 Body.prototype.integrateToTimeOfImpact = function(dt){
 
