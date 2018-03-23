@@ -8,6 +8,7 @@ var Quaternion = require('../math/Quaternion');
 var Material = require('../material/Material');
 var AABB = require('../collision/AABB');
 var Box = require('../shapes/Box');
+var RaycastResult = require('../collision/RaycastResult');
 
 /**
  * Base class for all body types.
