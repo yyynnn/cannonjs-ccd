@@ -11,10 +11,10 @@
     "engine",
     "3d"
   ],
-  "main": "./dist/cannon.min.js",
+  "main": "./build/cannon.min.js",
   "sideEffects": false,
   "files": [
-    "dist/"
+    "build/"
   ],
   "engines": {
     "node": "*"
