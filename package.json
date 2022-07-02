@@ -1,8 +1,8 @@
 {
-  "name": "cannon",
+  "name": "cannonjs-ccd",
   "version": "0.6.2",
-  "description": "A lightweight 3D physics engine written in JavaScript.",
-  "homepage": "https://github.com/schteppe/cannon.js",
+  "description": "A lightweight 3D physics engine written in JavaScript. With CCD",
+  "homepage": "https://github.com/yyynnn/cannonjs-ccd",
   "author": "Stefan Hedman <schteppe@gmail.com> (http://steffe.se)",
   "keywords": [
     "cannon.js",
@@ -11,16 +11,20 @@
     "engine",
     "3d"
   ],
-  "main": "./src/Cannon.js",
+  "main": "./dist/cannon.min.js",
+  "sideEffects": false,
+  "files": [
+    "dist/"
+  ],
   "engines": {
     "node": "*"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/schteppe/cannon.js.git"
+    "url": "https://github.com/yyynnn/cannonjs-ccd.git"
   },
   "bugs": {
-    "url": "https://github.com/schteppe/cannon.js/issues"
+    "url": "https://github.com/yyynnn/cannonjs-ccd/issues"
   },
   "licenses": [
     {
