@@ -19,6 +19,9 @@
   "engines": {
     "node": "*"
   },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/yyynnn/cannonjs-ccd.git"
