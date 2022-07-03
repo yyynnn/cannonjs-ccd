@@ -6,7 +6,7 @@
 // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
 
 // @ts-ignore
-declare namespace CANNON {
+declare namespace CANNONJS {
   export interface IAABBOptions {
     upperBound?: Vec3 | undefined
     lowerBound?: Vec3 | undefined
@@ -1000,5 +1000,5 @@ declare namespace CANNON {
 }
 
 declare module 'cannonjs-ccd' {
-  export = CANNON
+  export = CANNONJS
 }
