@@ -1,6 +1,6 @@
 {
   "name": "cannonjs-ccd",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "A lightweight 3D physics engine written in JavaScript. With CCD",
   "homepage": "https://github.com/yyynnn/cannonjs-ccd",
   "author": "Stefan Hedman <schteppe@gmail.com> (http://steffe.se)",
